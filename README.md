@@ -51,21 +51,27 @@ pip3 --version
 ### Install Development Tools
 
 ```bash
-# Virtual environment (usually included with Python 3.3+)
-python3 -m pip install --upgrade pip
+# Install uv - The fast Python package and project manager
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Essential development tools
-pip3 install --user pipx  # For installing Python applications
-pipx ensurepath
+# Or with Homebrew
+brew install uv
 
-# Code quality tools
-pipx install black         # Code formatter
-pipx install ruff         # Fast linter
-pipx install mypy         # Type checker
-pipx install poetry       # Dependency management
+# Windows
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Verify installation
+uv --version
+
+# Essential development tools (installed with uv tool)
+uv tool install black         # Code formatter
+uv tool install ruff         # Fast linter  
+uv tool install mypy         # Type checker
+uv tool install ipython      # Enhanced Python shell
 
 # Jupyter for interactive development
-pip3 install --user notebook ipython
+uv pip install --system notebook jupyterlab
 ```
 
 ### Clone & Run This Repository
@@ -190,59 +196,65 @@ python3 01_hello_world.py
 py_run 1  # Run script #1
 ```
 
-### Workflow B: Virtual Environment Projects (For Real Applications)
+### Workflow B: UV Projects (Fast & Modern Python Management)
 
-For substantial projects with dependencies:
-
-```bash
-cd ~/code/python_programming/personal_projects
-
-# Create new project with virtual environment
-mkdir my_app && cd my_app
-
-# Create virtual environment
-python3 -m venv venv
-
-# Activate virtual environment
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install requests flask pytest
-
-# Save dependencies
-pip freeze > requirements.txt
-
-# Create project structure
-mkdir src tests docs
-touch src/__init__.py src/main.py
-touch tests/test_main.py
-touch README.md
-
-# Deactivate when done
-deactivate
-```
-
-### Workflow C: Poetry Projects (Modern Dependency Management)
-
-Using Poetry for better dependency management:
+Using `uv` for fast virtual environment and dependency management:
 
 ```bash
 cd ~/code/python_programming/personal_projects
 
-# Create new Poetry project
-poetry new my_modern_app
-cd my_modern_app
+# Initialize a new Python project with uv
+uv init my_app
+cd my_app
+
+# Create and activate virtual environment
+uv venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Add dependencies
-poetry add requests
-poetry add --group dev pytest black ruff
+uv add requests flask
+uv add --dev pytest black ruff mypy
 
-# Run within Poetry environment
-poetry run python src/main.py
-poetry run pytest
+# Or install from requirements.txt
+uv pip install -r requirements.txt
 
-# Activate shell
-poetry shell
+# Sync dependencies (ensures exact versions)
+uv pip sync requirements.txt
+
+# Run without activating venv
+uv run python src/main.py
+uv run pytest
+
+# Compile dependencies (lock versions)
+uv pip compile requirements.in -o requirements.txt
+```
+
+### Workflow C: UV Tool Management (Global Python Tools)
+
+Using `uv` to manage Python CLI tools globally:
+
+```bash
+# Install tools globally (no venv needed)
+uv tool install ruff
+uv tool install black
+uv tool install pytest
+uv tool install cookiecutter
+uv tool install pre-commit
+
+# Run tools directly
+uv tool run black .
+uv tool run ruff check .
+
+# Or if added to PATH
+black .
+ruff check .
+
+# List installed tools
+uv tool list
+
+# Upgrade tools
+uv tool upgrade black
+uv tool upgrade --all
 ```
 
 ## 🛠️ Shell Helper Functions
@@ -352,94 +364,127 @@ EOF
     echo "Run with: pytest $filename"
 }
 
-# Virtual environment helpers
+# UV virtual environment helpers
 py_venv_create() {
-    local name="${1:-venv}"
-    python3 -m venv "$name"
-    echo "Created virtual environment: $name"
-    echo "Activate with: source $name/bin/activate"
+    uv venv ${1:-.venv}
+    echo "Created virtual environment: ${1:-.venv}"
+    echo "Activate with: source ${1:-.venv}/bin/activate"
 }
 
 py_venv_activate() {
-    local name="${1:-venv}"
-    if [ -d "$name" ]; then
-        source "$name/bin/activate"
+    local venv_path="${1:-.venv}"
+    if [ -d "$venv_path" ]; then
+        source "$venv_path/bin/activate"
     else
-        echo "No virtual environment found at $name"
+        echo "No virtual environment found at $venv_path"
+        echo "Create one with: uv venv"
     fi
 }
 
-# Quick virtual environment setup
+# Quick project setup with uv
 py_project_init() {
     [ -z "$1" ] && echo "Usage: py_project_init <project_name>" && return 1
     
-    mkdir -p "$1" && cd "$1"
-    python3 -m venv venv
-    source venv/bin/activate
+    # Use uv to initialize project
+    uv init "$1"
+    cd "$1"
     
-    # Create project structure
+    # Create virtual environment
+    uv venv
+    source .venv/bin/activate
+    
+    # Create additional structure
     mkdir -p src tests docs
     touch src/__init__.py
-    touch src/main.py
-    touch tests/__init__.py
-    touch tests/test_main.py
-    touch requirements.txt
-    touch requirements-dev.txt
-    touch README.md
-    touch .gitignore
     
-    # Basic .gitignore
-    cat > .gitignore << 'EOF'
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-venv/
-env/
-ENV/
+    # Add common dev dependencies
+    uv add --dev pytest black ruff mypy pre-commit
+    
+    # Create pre-commit config
+    cat > .pre-commit-config.yaml << 'EOF'
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.9
+    hooks:
+      - id: ruff
+      - id: ruff-format
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Distribution
-dist/
-build/
-*.egg-info/
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-all]
 EOF
 
-    # Basic README
-    cat > README.md << EOF
-# $1
-
-## Setup
-
-\`\`\`bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-\`\`\`
-
-## Development
-
-\`\`\`bash
-pip install -r requirements-dev.txt
-pytest
-\`\`\`
-EOF
-
-    echo "Created project: $1"
+    # Initialize pre-commit
+    uv run pre-commit install
+    
+    echo "Created project: $1 with uv"
     echo "Virtual environment activated"
-    echo "Install packages with: pip install <package>"
+    echo "Install packages with: uv add <package>"
+    echo "Install dev packages with: uv add --dev <package>"
+}
+
+# UV-specific project initialization with Python version
+py_uv_init() {
+    local name="$1"
+    local python_version="${2:-3.12}"
+    
+    [ -z "$name" ] && echo "Usage: py_uv_init <project_name> [python_version]" && return 1
+    
+    uv init --python "$python_version" "$name"
+    cd "$name"
+    uv venv
+    source .venv/bin/activate
+    
+    echo "Created $name with Python $python_version"
+}
+
+# Install packages with uv
+py_add() {
+    if [ -z "$1" ]; then
+        echo "Usage: py_add <package> [package2...]"
+        return 1
+    fi
+    uv add "$@"
+}
+
+# Install dev packages with uv
+py_add_dev() {
+    if [ -z "$1" ]; then
+        echo "Usage: py_add_dev <package> [package2...]"
+        return 1
+    fi
+    uv add --dev "$@"
+}
+
+# Run command in uv environment without activation
+py_uv_run() {
+    uv run "$@"
+}
+
+# Sync dependencies from requirements.txt
+py_sync() {
+    if [ -f "requirements.txt" ]; then
+        uv pip sync requirements.txt
+    elif [ -f "pyproject.toml" ]; then
+        uv sync
+    else
+        echo "No requirements.txt or pyproject.toml found"
+    fi
+}
+
+# Compile dependencies (pin versions)
+py_lock() {
+    if [ -f "requirements.in" ]; then
+        uv pip compile requirements.in -o requirements.txt
+        echo "Compiled requirements.in -> requirements.txt"
+    elif [ -f "pyproject.toml" ]; then
+        uv lock
+        echo "Created uv.lock file"
+    else
+        echo "No requirements.in or pyproject.toml found"
+    fi
 }
 
 # Run with auto-reload (for development)
@@ -552,14 +597,20 @@ py_new 05_loops      # Create new script
 py_test_new utils    # Create test file
 py_watch script      # Auto-reload on changes
 
-# Project management
-py_project_init app  # Create new project with venv
-py_venv_create       # Create virtual environment
+# UV Project management
+py_project_init app  # Create new project with uv
+py_uv_init app 3.11  # Create with specific Python version
+py_venv_create       # Create virtual environment with uv
 py_venv_activate     # Activate virtual environment
+py_add requests      # Add package with uv
+py_add_dev pytest    # Add dev package with uv
+py_sync              # Sync dependencies
+py_lock              # Lock/compile dependencies
+py_uv_run python app.py  # Run without activating venv
 
 # Code quality
 py_format            # Format code with black
-py_lint              # Lint with ruff/flake8
+py_lint              # Lint with ruff
 py_type              # Type check with mypy
 py_test              # Run tests with pytest
 
@@ -572,19 +623,38 @@ py_ds_setup          # Install data science packages
 py_web_setup         # Install web dev packages
 ```
 
-### Common pip Commands
+### Common uv Commands
 
 ```bash
-pip install package           # Install package
-pip install -r requirements.txt  # Install from file
-pip freeze > requirements.txt    # Save dependencies
-pip list                      # List installed packages
-pip show package              # Show package info
-pip uninstall package         # Remove package
-pip install --upgrade package # Update package
+# Project management
+uv init project_name         # Initialize new project
+uv venv                      # Create virtual environment
+uv add package               # Add dependency
+uv add --dev package         # Add dev dependency
+uv remove package            # Remove dependency
+uv sync                      # Sync all dependencies
+uv lock                      # Create lock file
+
+# Running code
+uv run python script.py      # Run with uv environment
+uv run pytest               # Run tests
+uv run black .              # Format code
+
+# Tool management
+uv tool install ruff        # Install tool globally
+uv tool run ruff check      # Run tool
+uv tool list               # List installed tools
+uv tool upgrade --all      # Upgrade all tools
+
+# Pip compatibility
+uv pip install package      # Install package
+uv pip compile requirements.in  # Compile requirements
+uv pip sync requirements.txt    # Sync exact versions
 ```
 
 ## 📖 Example: Starting Your Python Journey
+
+### Quick Start with Scripts
 
 ```bash
 # 1. Navigate to Python programming directory
@@ -598,62 +668,76 @@ cd basics
 py_new 01_hello_world
 py_new 02_variables
 py_new 03_data_types
-py_new 04_control_flow
-py_new 05_functions
 
-# 4. Edit and enhance the hello world program
-cat > 01_hello_world.py << 'EOF'
+# 4. Run programs
+py_run 01_hello_world
+py_list              # See all programs
+py_run 1             # Run by number
+```
+
+### Creating a Project with uv
+
+```bash
+# 1. Create a new project with uv
+cd ~/code/python_programming/personal_projects
+py_project_init my_first_app  # or: uv init my_first_app
+
+# 2. Project is created and venv activated
+# Add dependencies
+py_add requests rich  # or: uv add requests rich
+py_add_dev pytest black ruff  # or: uv add --dev pytest black ruff
+
+# 3. Create your application
+cat > src/main.py << 'EOF'
 #!/usr/bin/env python3
-"""Hello World - Demonstrating Python basics"""
+"""My First UV-managed Python App"""
 
-def greet(name: str, language: str = "Python") -> str:
-    """Generate a greeting message"""
-    return f"Hello, {name}! Welcome to {language} programming!"
+from rich.console import Console
+from rich.table import Table
+import requests
+
+console = Console()
+
+def fetch_python_info():
+    """Fetch Python package info from PyPI"""
+    response = requests.get("https://pypi.org/pypi/uv/json")
+    data = response.json()
+    return data["info"]
 
 def main():
-    print("=== 01_hello_world ===\n")
+    console.print("[bold blue]My First UV App![/bold blue]\n")
     
-    # Basic output
-    print("Hello, World!")
+    info = fetch_python_info()
     
-    # Variables and f-strings
-    name = "Developer"
-    year = 2025
-    print(f"Hello, {name}! Learning Python in {year}")
+    table = Table(title="UV Package Info")
+    table.add_column("Field", style="cyan")
+    table.add_column("Value", style="green")
     
-    # Using functions
-    message = greet("Alice")
-    print(message)
+    table.add_row("Name", info["name"])
+    table.add_row("Version", info["version"])
+    table.add_row("Summary", info["summary"])
+    table.add_row("Author", info["author"])
     
-    # List and loop
-    languages = ["Python", "Rust", "C", "Zig"]
-    for lang in languages:
-        print(f"  - {lang} is awesome!")
-    
-    # Dictionary
-    info = {
-        "language": "Python",
-        "version": "3.12",
-        "type": "interpreted"
-    }
-    print(f"\nUsing {info['language']} {info['version']}")
+    console.print(table)
 
 if __name__ == "__main__":
     main()
 EOF
 
-# 5. Run and test
-py_list              # See all programs
-py_run 1             # Run first program
-py_run 01_hello_world   # Or run by name
+# 4. Run without activating venv
+uv run python src/main.py
+# Or if venv is activated
+python src/main.py
 
-# 6. Create and run a test
-py_test_new 01_hello_world
-pytest test_01_hello_world.py
+# 5. Run tests
+uv run pytest
 
-# 7. Format and lint
-py_format 01_hello_world.py
-py_lint 01_hello_world.py
+# 6. Format and lint
+uv run black src/
+uv run ruff check src/
+
+# 7. Lock dependencies for reproducible builds
+uv lock  # Creates uv.lock file
 ```
 
 ## 🎯 Learning Path
@@ -712,14 +796,26 @@ py_lint 01_hello_world.py
 
 ## 💡 Tips
 
-1. **Use virtual environments** - Keep dependencies isolated
-2. **Follow PEP 8** - Python style guide
-3. **Write docstrings** - Document your functions
-4. **Use type hints** - Improve code clarity
-5. **Test your code** - pytest makes it easy
-6. **Use f-strings** - Modern string formatting
-7. **List comprehensions** - Pythonic and efficient
-8. **Learn the stdlib** - Python's batteries included
+1. **Use uv for speed** - 10-100x faster than pip
+2. **Always use virtual environments** - Keep dependencies isolated
+3. **Follow PEP 8** - Python style guide
+4. **Write docstrings** - Document your functions
+5. **Use type hints** - Improve code clarity
+6. **Test your code** - pytest makes it easy
+7. **Use f-strings** - Modern string formatting
+8. **Lock dependencies** - Use `uv lock` for reproducible builds
+
+## 🚄 Why uv?
+
+**uv** is a blazing-fast Python package manager written in Rust that replaces pip, pip-tools, pipx, poetry, pyenv, and virtualenv. Key benefits:
+
+- **⚡ Speed** - 10-100x faster than pip
+- **🔒 Reliable** - Consistent dependency resolution
+- **📦 All-in-one** - Replaces multiple tools
+- **🎯 Drop-in replacement** - Compatible with pip commands
+- **🔄 Reproducible** - Lock files for exact versions
+- **🐍 Python management** - Install and manage Python versions
+- **🛠️ Tool management** - Install CLI tools globally without conflicts
 
 ## 🐍 Pythonic Principles
 
