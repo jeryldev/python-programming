@@ -8,14 +8,33 @@ Central directory for all Python learning projects. Organized by course/resource
 
 ### Install Python
 
-Python 3.9+ is recommended. Check if Python is installed:
+Python 3.9+ is recommended. Check your current setup:
 
 ```bash
+# Check Python version
 python3 --version
+# Output: Python 3.12.0
+
+# Check pip version
 pip3 --version
+# Output: pip 23.3.1 from /usr/local/lib/python3.12/site-packages/pip (python 3.12)
+
+# Check if uv is installed (after installing below)
+uv --version
+# Output: uv 0.4.18
+
+# Check active virtual environment
+echo $VIRTUAL_ENV
+# Output: /path/to/project/.venv (or empty if none active)
+
+# Or check Python location to see if in venv
+which python
+# Output: /path/to/project/.venv/bin/python (if in venv)
+# Output: /usr/bin/python3 (if system Python)
 ```
 
 **macOS:**
+
 ```bash
 # Using Homebrew (recommended)
 brew install python@3.12
@@ -25,6 +44,7 @@ brew install python@3.12
 ```
 
 **Linux:**
+
 ```bash
 # Ubuntu/Debian
 sudo apt update
@@ -38,14 +58,17 @@ sudo pacman -S python python-pip
 ```
 
 **Windows:**
+
 - Download from [python.org](https://www.python.org/downloads/)
 - **Important**: Check "Add Python to PATH" during installation
 - Or use Windows Store: `winget install Python.Python.3.12`
 
-After installation, verify:
+After Python installation, verify everything:
+
 ```bash
-python3 --version
-pip3 --version
+python3 --version  # Should show Python 3.9+
+pip3 --version     # Should show pip version
+python3 -m venv --help  # Should show venv help (confirms venv module)
 ```
 
 ### Install Development Tools
@@ -66,7 +89,7 @@ uv --version
 
 # Essential development tools (installed with uv tool)
 uv tool install black         # Code formatter
-uv tool install ruff         # Fast linter  
+uv tool install ruff         # Fast linter
 uv tool install mypy         # Type checker
 uv tool install ipython      # Enhanced Python shell
 
@@ -99,7 +122,9 @@ For Neovim users with LazyVim, enable the Python language extra:
 ```vim
 :LazyExtras
 ```
+
 Then select and enable `lang.python` extra. This will install:
+
 - **pyright** or **pylsp** - Python LSP servers
 - **ruff** - Fast Python linter
 - **black** - Code formatter
@@ -108,6 +133,7 @@ Then select and enable `lang.python` extra. This will install:
 - **neotest-python** - Test runner integration
 
 The Python extra requires LSP servers to be installed:
+
 ```bash
 # Mason will handle this, or install manually:
 npm install -g pyright
@@ -172,15 +198,15 @@ cat > 01_hello_world.py << 'EOF'
 
 def main():
     print("=== 01_hello_world ===\n")
-    
+
     # Basic output
     print("Hello, World!")
-    
+
     # Using f-strings (Python 3.6+)
     name = "Pythonista"
     year = 2025
     print(f"Hello, {name}! Learning Python in {year}")
-    
+
     # Multiple ways to format
     print("Using format: {}".format(name))
     print("Using %s: %s" % ("old style", "formatting"))
@@ -318,9 +344,9 @@ Module description goes here
 def main():
     """Main function"""
     print(f"=== ${1%.py} ===\n")
-    
+
     # Your code here
-    
+
 
 if __name__ == "__main__":
     main()
@@ -384,22 +410,22 @@ py_venv_activate() {
 # Quick project setup with uv
 py_project_init() {
     [ -z "$1" ] && echo "Usage: py_project_init <project_name>" && return 1
-    
+
     # Use uv to initialize project
     uv init "$1"
     cd "$1"
-    
+
     # Create virtual environment
     uv venv
     source .venv/bin/activate
-    
+
     # Create additional structure
     mkdir -p src tests docs
     touch src/__init__.py
-    
+
     # Add common dev dependencies
     uv add --dev pytest black ruff mypy pre-commit
-    
+
     # Create pre-commit config
     cat > .pre-commit-config.yaml << 'EOF'
 repos:
@@ -418,7 +444,7 @@ EOF
 
     # Initialize pre-commit
     uv run pre-commit install
-    
+
     echo "Created project: $1 with uv"
     echo "Virtual environment activated"
     echo "Install packages with: uv add <package>"
@@ -429,14 +455,14 @@ EOF
 py_uv_init() {
     local name="$1"
     local python_version="${2:-3.12}"
-    
+
     [ -z "$name" ] && echo "Usage: py_uv_init <project_name> [python_version]" && return 1
-    
+
     uv init --python "$python_version" "$name"
     cd "$name"
     uv venv
     source .venv/bin/activate
-    
+
     echo "Created $name with Python $python_version"
 }
 
@@ -490,13 +516,13 @@ py_lock() {
 # Run with auto-reload (for development)
 py_watch() {
     [ -z "$1" ] && echo "Usage: py_watch <script>" && return 1
-    
+
     # Check if watchdog is installed
     if ! python3 -c "import watchdog" 2>/dev/null; then
         echo "Installing watchdog..."
         pip install watchdog
     fi
-    
+
     watchmedo auto-restart --patterns="*.py" --recursive -- python3 "$1.py"
 }
 
@@ -576,6 +602,60 @@ py_web_setup() {
     pip install flask django fastapi uvicorn requests beautifulsoup4
     echo "Installed: flask, django, fastapi, uvicorn, requests, beautifulsoup4"
 }
+
+# Check virtual environment status
+py_venv_status() {
+    echo "=== Virtual Environment Status ==="
+
+    if [ -n "$VIRTUAL_ENV" ]; then
+        echo "✅ Virtual environment ACTIVE"
+        echo "📍 Location: $VIRTUAL_ENV"
+        echo "🐍 Python: $(which python)"
+        echo "📦 Pip: $(which pip)"
+
+        # Check if it's a uv-managed venv
+        if [ -f "$VIRTUAL_ENV/../.python-version" ]; then
+            echo "🚀 Managed by: uv"
+            echo "🐍 Python version: $(cat $VIRTUAL_ENV/../.python-version)"
+        fi
+
+        echo "\nInstalled packages:"
+        pip list | head -10
+        echo "..."
+        echo "Total packages: $(pip list | tail -n +3 | wc -l)"
+    else
+        echo "❌ No virtual environment active"
+        echo "🐍 Using system Python: $(which python3)"
+
+        # Check for venv directories in current path
+        if [ -d ".venv" ]; then
+            echo "\n📁 Found .venv/ directory"
+            echo "   Activate with: source .venv/bin/activate"
+        elif [ -d "venv" ]; then
+            echo "\n📁 Found venv/ directory"
+            echo "   Activate with: source venv/bin/activate"
+        else
+            echo "\n💡 Create one with: uv venv"
+        fi
+    fi
+}
+
+# Quick environment info
+py_info() {
+    python3 -c "
+import sys
+import platform
+import site
+
+print('=== Python Environment Info ===')
+print(f'Python: {sys.version}')
+print(f'Platform: {platform.platform()}')
+print(f'Executable: {sys.executable}')
+print(f'Virtual Env: {sys.prefix != sys.base_prefix}')
+if sys.prefix != sys.base_prefix:
+    print(f'Venv Path: {sys.prefix}')
+print(f'Site Packages: {site.getsitepackages()[0] if site.getsitepackages() else \"None\"}')"
+}
 ```
 
 ## ⚡ Quick Commands
@@ -617,6 +697,10 @@ py_test              # Run tests with pytest
 # Interactive
 py_repl              # Python with common imports
 py_notebook          # Start Jupyter notebook
+
+# Environment info
+py_venv_status       # Check virtual environment status
+py_info              # Show Python environment details
 
 # Setup helpers
 py_ds_setup          # Install data science packages
@@ -706,18 +790,18 @@ def fetch_python_info():
 
 def main():
     console.print("[bold blue]My First UV App![/bold blue]\n")
-    
+
     info = fetch_python_info()
-    
+
     table = Table(title="UV Package Info")
     table.add_column("Field", style="cyan")
     table.add_column("Value", style="green")
-    
+
     table.add_row("Name", info["name"])
     table.add_row("Version", info["version"])
     table.add_row("Summary", info["summary"])
     table.add_row("Author", info["author"])
-    
+
     console.print(table)
 
 if __name__ == "__main__":
@@ -769,17 +853,20 @@ uv lock  # Creates uv.lock file
 ### Specializations
 
 **Web Development:**
+
 - Flask/Django for web apps
 - FastAPI for APIs
 - SQLAlchemy for databases
 
 **Data Science:**
+
 - NumPy for numerical computing
 - Pandas for data analysis
 - Matplotlib/Seaborn for visualization
 - scikit-learn for machine learning
 
 **Automation:**
+
 - Selenium for web automation
 - Beautiful Soup for web scraping
 - Schedule for task automation
@@ -840,3 +927,4 @@ Run `python3 -c "import this"` to see the complete Zen of Python.
 ---
 
 _Happy Learning! 🐍_
+
